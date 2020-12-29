@@ -14,28 +14,7 @@ struct RubyVersion {
 }
 impl RubyVersion {
     fn print(&self) {
-        match &self.teeny {
-            Some(teeny) => {
-                match &self.patch {
-                    Some(patch) => {
-                        println!(
-                            "Detected {}.{}.{}-p{} in {}",
-                            self.major, self.minor, teeny, patch, self.found_in_file,
-                        );
-                    }
-                    None => {
-                        println!(
-                            "Detected {}.{}.{} in {}", self.major, self.minor, teeny, self.found_in_file,
-                        );
-                    }
-                }
-            },
-            None => {
-                println!(
-                    "Detected {}.{} in {}", self.major, self.minor, self.found_in_file,
-                );
-            }
-        }
+        println!("Detected {} in {}", self, self.found_in_file)
     }
 
     fn from_captures(captures: regex::Captures, filepath: String) -> RubyVersion {
@@ -50,6 +29,36 @@ impl RubyVersion {
             None => None
         };
         RubyVersion { major, minor, teeny, patch, found_in_file: filepath }
+    }
+}
+
+impl std::fmt::Display for RubyVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.teeny {
+            Some(teeny) => {
+                match &self.patch {
+                    Some(patch) => {
+                        write!(
+                            f,
+                            "{}.{}.{}-p{}",
+                            self.major, self.minor, teeny, patch,
+                        )
+                    }
+                    None => {
+                        write!(
+                            f,
+                            "{}.{}.{}",
+                            self.major, self.minor, teeny,
+                        )
+                    }
+                }
+            },
+            None => {
+                write!(
+                    f, "{}.{}", self.major, self.minor,
+                )
+            }
+        }
     }
 }
 
@@ -138,11 +147,11 @@ where P: AsRef<Path>, {
 #[test]
 fn test_with_same_versions() {
     let paths = fs::read_dir("./fixtures/same_versions").unwrap();
-    parse_files_for_versions(paths);
+    let version = parse_files_for_versions(paths);
 }
 
 #[test]
 fn test_with_different_version() {
     let paths = fs::read_dir("./fixtures/different_versions").unwrap();
-    parse_files_for_versions(paths);
+    let versions = parse_files_for_versions(paths);
 }

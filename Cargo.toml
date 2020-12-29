@@ -1,5 +1,5 @@
 [package]
-name = "yalverm"
+name = "rubsty"
 version = "0.1.0"
 authors = ["Frederik Wille <frederik@wille.hamburg>"]
 edition = "2018"
