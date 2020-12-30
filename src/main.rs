@@ -1,9 +1,11 @@
 extern crate regex;
+extern crate itertools;
 use regex::Regex;
 use std::fs;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
+use itertools::Itertools;
 
 struct RubyVersion {
     major: String,
@@ -62,9 +64,85 @@ impl std::fmt::Display for RubyVersion {
     }
 }
 
+impl PartialEq for RubyVersion {
+    fn eq(&self, other: &Self) -> bool {
+        let mut result =
+            self.major == other.major &&
+            self.minor == other.minor &&
+            self.found_in_file == other.found_in_file;
+        if let Some(teeny) = &self.teeny {
+            if let Some(other_teeny) = &other.teeny {
+                result = result && teeny == other_teeny
+            } else {
+                return false
+            }
+        }
+        if let Some(patch) = &self.patch {
+            if let Some(other_patch) = &other.patch {
+                result = result && patch == other_patch
+            } else {
+                return false
+            }
+        }
+        result
+    }
+}
+impl Eq for RubyVersion {}
+
+impl std::hash::Hash for RubyVersion {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.major.hash(state);
+        self.minor.hash(state);
+        self.teeny.hash(state);
+        self.patch.hash(state);
+        self.found_in_file.hash(state)
+    }
+}
+
+struct VersionMismatch<'a> {
+    level: VersionLevel,
+    versions: Vec<&'a RubyVersion>
+}
+
+enum VersionLevel {
+    Major,
+    Minor,
+    Teeny,
+    Patch
+}
+
 fn main() {
     let paths = fs::read_dir("./fixtures/same_versions").unwrap();
-    let version = parse_files_for_versions(paths);
+    let versions = parse_files_for_versions(paths);
+    let mismatches = detect_version_mismatches(&versions);
+}
+
+fn detect_version_mismatches(versions: &Vec<RubyVersion>) -> Vec<VersionMismatch> {
+    let mut mismatches = Vec::new();
+    for pair in versions.iter().combinations(2) {
+        if let Some(mismatch) = compare_two_versions(pair[0], pair[1]) {
+            mismatches.push(mismatch);
+        }
+    }
+    mismatches
+}
+
+fn compare_two_versions<'a>(left_version: &'a RubyVersion, right_version: &'a RubyVersion) -> Option<VersionMismatch <'a>> {
+    if left_version.major != right_version.major {
+        let mismatch = VersionMismatch{ level: VersionLevel::Major, versions: vec![left_version, right_version] };
+        Some(mismatch)
+    } else if left_version.minor != right_version.minor {
+        let mismatch = VersionMismatch{ level: VersionLevel::Minor, versions: vec![left_version, right_version] };
+        Some(mismatch)
+    } else if left_version.teeny != right_version.teeny {
+        let mismatch = VersionMismatch{ level: VersionLevel::Teeny, versions: vec![left_version, right_version] };
+        Some(mismatch)
+    } else if left_version.patch != right_version.patch {
+        let mismatch = VersionMismatch{ level: VersionLevel::Patch, versions: vec![left_version, right_version] };
+        Some(mismatch)
+    } else {
+        None
+    }
 }
 
 fn parse_files_for_versions(paths: fs::ReadDir) -> Vec<RubyVersion> {
@@ -147,11 +225,16 @@ where P: AsRef<Path>, {
 #[test]
 fn test_with_same_versions() {
     let paths = fs::read_dir("./fixtures/same_versions").unwrap();
-    let version = parse_files_for_versions(paths);
+    let versions = parse_files_for_versions(paths);
+    let mismatches = detect_version_mismatches(&versions);
+    assert!(mismatches.is_empty());
 }
 
 #[test]
 fn test_with_different_version() {
     let paths = fs::read_dir("./fixtures/different_versions").unwrap();
     let versions = parse_files_for_versions(paths);
+    let mismatches = detect_version_mismatches(&versions);
+    println!("{}", mismatches.len());
+    assert!(mismatches.len() == 1);
 }
