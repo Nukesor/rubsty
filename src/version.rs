@@ -96,4 +96,3 @@ impl std::hash::Hash for RubyVersion {
         self.found_in_file.hash(state)
     }
 }
-
