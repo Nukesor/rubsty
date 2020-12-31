@@ -1,4 +1,4 @@
-use crate::version::{RubyVersion, VersionMismatch, VersionLevel};
+use crate::version::{RubyVersion, VersionLevel, VersionMismatch};
 use itertools::Itertools;
 use regex::Regex;
 use std::fs;
@@ -6,14 +6,14 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-pub fn detect_version_mismatches() -> Vec<VersionMismatch<'static>> {
+pub fn detect_version_mismatches() -> Vec<VersionMismatch> {
     let paths = fs::read_dir("./fixtures/different_versions").unwrap();
     let versions = parse_files_for_versions(paths);
-    let mismatches = build_version_mismatches(versions);
+    let mismatches = build_version_mismatches(&versions);
     return mismatches;
 }
 
-fn build_version_mismatches(versions: Vec<RubyVersion>) -> Vec<VersionMismatch<'static>> {
+fn build_version_mismatches(versions: &Vec<RubyVersion>) -> Vec<VersionMismatch> {
     let mut mismatches = Vec::new();
     for pair in versions.iter().combinations(2) {
         if let Some(mismatch) = compare_two_versions(pair[0], pair[1]) {
@@ -23,32 +23,32 @@ fn build_version_mismatches(versions: Vec<RubyVersion>) -> Vec<VersionMismatch<'
     mismatches
 }
 
-fn compare_two_versions<'a>(
-    left_version: &'a RubyVersion,
-    right_version: &'a RubyVersion,
-) -> Option<VersionMismatch<'a>> {
+fn compare_two_versions(
+    left_version: &RubyVersion,
+    right_version: &RubyVersion,
+) -> Option<VersionMismatch> {
     if left_version.major != right_version.major {
         let mismatch = VersionMismatch {
             level: VersionLevel::Major,
-            versions: vec![left_version, right_version],
+            versions: vec![left_version.clone(), right_version.clone()],
         };
         Some(mismatch)
     } else if left_version.minor != right_version.minor {
         let mismatch = VersionMismatch {
             level: VersionLevel::Minor,
-            versions: vec![left_version, right_version],
+            versions: vec![left_version.clone(), right_version.clone()],
         };
         Some(mismatch)
     } else if left_version.teeny != right_version.teeny {
         let mismatch = VersionMismatch {
             level: VersionLevel::Teeny,
-            versions: vec![left_version, right_version],
+            versions: vec![left_version.clone(), right_version.clone()],
         };
         Some(mismatch)
     } else if left_version.patch != right_version.patch {
         let mismatch = VersionMismatch {
             level: VersionLevel::Patch,
-            versions: vec![left_version, right_version],
+            versions: vec![left_version.clone(), right_version.clone()],
         };
         Some(mismatch)
     } else {
@@ -147,3 +147,4 @@ fn test_with_different_version() {
     println!("{}", mismatches.len());
     assert!(mismatches.len() == 1);
 }
+

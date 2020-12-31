@@ -1,9 +1,9 @@
-pub struct VersionMismatch<'a> {
+pub struct VersionMismatch {
     pub level: VersionLevel,
-    pub versions: Vec<&'a RubyVersion>,
+    pub versions: Vec<RubyVersion>,
 }
 
-#[derive(strum_macros::ToString, Debug)]
+#[derive(strum_macros::ToString, Debug, Clone)]
 pub enum VersionLevel {
     Major,
     Minor,
@@ -11,6 +11,7 @@ pub enum VersionLevel {
     Patch,
 }
 
+#[derive(Debug, Clone)]
 pub struct RubyVersion {
     pub major: String,
     pub minor: String,
@@ -95,3 +96,4 @@ impl std::hash::Hash for RubyVersion {
         self.found_in_file.hash(state)
     }
 }
+
