@@ -1,11 +1,11 @@
-extern crate regex;
 extern crate itertools;
+extern crate regex;
+use itertools::Itertools;
 use regex::Regex;
 use std::fs;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
-use itertools::Itertools;
 
 struct RubyVersion {
     major: String,
@@ -24,41 +24,35 @@ impl RubyVersion {
         let minor = String::from(captures.name("minor").unwrap().as_str());
         let teeny = match captures.name("teeny") {
             Some(teeny) => Some(String::from(teeny.as_str())),
-            None => None
+            None => None,
         };
         let patch = match captures.name("patch") {
             Some(patch) => Some(String::from(patch.as_str())),
-            None => None
+            None => None,
         };
-        RubyVersion { major, minor, teeny, patch, found_in_file: filepath }
+        RubyVersion {
+            major,
+            minor,
+            teeny,
+            patch,
+            found_in_file: filepath,
+        }
     }
 }
 
 impl std::fmt::Display for RubyVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.teeny {
-            Some(teeny) => {
-                match &self.patch {
-                    Some(patch) => {
-                        write!(
-                            f,
-                            "{}.{}.{}-p{}",
-                            self.major, self.minor, teeny, patch,
-                        )
-                    }
-                    None => {
-                        write!(
-                            f,
-                            "{}.{}.{}",
-                            self.major, self.minor, teeny,
-                        )
-                    }
+            Some(teeny) => match &self.patch {
+                Some(patch) => {
+                    write!(f, "{}.{}.{}-p{}", self.major, self.minor, teeny, patch)
+                }
+                None => {
+                    write!(f, "{}.{}.{}", self.major, self.minor, teeny)
                 }
             },
             None => {
-                write!(
-                    f, "{}.{}", self.major, self.minor,
-                )
+                write!(f, "{}.{}", self.major, self.minor)
             }
         }
     }
@@ -66,22 +60,21 @@ impl std::fmt::Display for RubyVersion {
 
 impl PartialEq for RubyVersion {
     fn eq(&self, other: &Self) -> bool {
-        let mut result =
-            self.major == other.major &&
-            self.minor == other.minor &&
-            self.found_in_file == other.found_in_file;
+        let mut result = self.major == other.major
+            && self.minor == other.minor
+            && self.found_in_file == other.found_in_file;
         if let Some(teeny) = &self.teeny {
             if let Some(other_teeny) = &other.teeny {
                 result = result && teeny == other_teeny
             } else {
-                return false
+                return false;
             }
         }
         if let Some(patch) = &self.patch {
             if let Some(other_patch) = &other.patch {
                 result = result && patch == other_patch
             } else {
-                return false
+                return false;
             }
         }
         result
@@ -101,14 +94,14 @@ impl std::hash::Hash for RubyVersion {
 
 struct VersionMismatch<'a> {
     level: VersionLevel,
-    versions: Vec<&'a RubyVersion>
+    versions: Vec<&'a RubyVersion>,
 }
 
 enum VersionLevel {
     Major,
     Minor,
     Teeny,
-    Patch
+    Patch,
 }
 
 fn main() {
@@ -127,18 +120,33 @@ fn detect_version_mismatches(versions: &Vec<RubyVersion>) -> Vec<VersionMismatch
     mismatches
 }
 
-fn compare_two_versions<'a>(left_version: &'a RubyVersion, right_version: &'a RubyVersion) -> Option<VersionMismatch <'a>> {
+fn compare_two_versions<'a>(
+    left_version: &'a RubyVersion,
+    right_version: &'a RubyVersion,
+) -> Option<VersionMismatch<'a>> {
     if left_version.major != right_version.major {
-        let mismatch = VersionMismatch{ level: VersionLevel::Major, versions: vec![left_version, right_version] };
+        let mismatch = VersionMismatch {
+            level: VersionLevel::Major,
+            versions: vec![left_version, right_version],
+        };
         Some(mismatch)
     } else if left_version.minor != right_version.minor {
-        let mismatch = VersionMismatch{ level: VersionLevel::Minor, versions: vec![left_version, right_version] };
+        let mismatch = VersionMismatch {
+            level: VersionLevel::Minor,
+            versions: vec![left_version, right_version],
+        };
         Some(mismatch)
     } else if left_version.teeny != right_version.teeny {
-        let mismatch = VersionMismatch{ level: VersionLevel::Teeny, versions: vec![left_version, right_version] };
+        let mismatch = VersionMismatch {
+            level: VersionLevel::Teeny,
+            versions: vec![left_version, right_version],
+        };
         Some(mismatch)
     } else if left_version.patch != right_version.patch {
-        let mismatch = VersionMismatch{ level: VersionLevel::Patch, versions: vec![left_version, right_version] };
+        let mismatch = VersionMismatch {
+            level: VersionLevel::Patch,
+            versions: vec![left_version, right_version],
+        };
         Some(mismatch)
     } else {
         None
@@ -149,8 +157,7 @@ fn parse_files_for_versions(paths: fs::ReadDir) -> Vec<RubyVersion> {
     let mut versions = Vec::new();
     for path in paths {
         let path = path.unwrap();
-        let filename = path.file_name().
-            into_string().unwrap();
+        let filename = path.file_name().into_string().unwrap();
         let filepath = path.path().display().to_string();
         // let detected_versions = Vec<RubyVersion>
         match filename.as_str() {
@@ -158,18 +165,16 @@ fn parse_files_for_versions(paths: fs::ReadDir) -> Vec<RubyVersion> {
                 println!("Found .ruby-version");
                 let version = process_ruby_version_file(filepath);
                 versions.push(version)
-            },
+            }
             ".tool-versions" => {
                 println!("Found .tool-versions");
                 match process_tool_versions_file(filepath) {
-                    Some(version) => {
-                        versions.push(version)
-                    },
+                    Some(version) => versions.push(version),
                     None => {
                         println!("No ruby version defined in .tool-versions")
                     }
                 }
-            },
+            }
             _ => println!("Skipping {}", filepath),
         }
     }
@@ -191,22 +196,21 @@ fn process_tool_versions_file(filepath: String) -> Option<RubyVersion> {
 }
 
 fn process_tool_versions_line(line: String, filepath: &String) -> Option<RubyVersion> {
-    let version_regex = Regex::new(
-        r"^ruby (?P<major>\d+)\.(?P<minor>\d+)\.(?P<teeny>\d+)(-p(?P<patch>\d+))?"
-    ).unwrap();
+    let version_regex =
+        Regex::new(r"^ruby (?P<major>\d+)\.(?P<minor>\d+)\.(?P<teeny>\d+)(-p(?P<patch>\d+))?")
+            .unwrap();
     let captures = version_regex.captures(&line);
     if let Some(captures) = captures {
         let version = RubyVersion::from_captures(captures, filepath.clone());
         version.print();
-        return Some(version)
+        return Some(version);
     }
     None
 }
 
 fn process_ruby_version_file(filepath: String) -> RubyVersion {
-    let version_regex = Regex::new(
-        r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<teeny>\d+)(-p(?P<patch>\d+))?"
-    ).unwrap();
+    let version_regex =
+        Regex::new(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<teeny>\d+)(-p(?P<patch>\d+))?").unwrap();
     let file_content = fs::read_to_string(&filepath).unwrap();
     // println!("{}", file_content);
     let captures = version_regex.captures(&file_content).unwrap();
@@ -217,7 +221,9 @@ fn process_ruby_version_file(filepath: String) -> RubyVersion {
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
