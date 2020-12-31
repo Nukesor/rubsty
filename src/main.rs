@@ -1,5 +1,7 @@
 extern crate itertools;
 extern crate regex;
+use comfy_table::Cell;
+use comfy_table::Table;
 use itertools::Itertools;
 use regex::Regex;
 use std::fs;
@@ -97,6 +99,7 @@ struct VersionMismatch<'a> {
     versions: Vec<&'a RubyVersion>,
 }
 
+#[derive(strum_macros::ToString, Debug)]
 enum VersionLevel {
     Major,
     Minor,
@@ -105,9 +108,30 @@ enum VersionLevel {
 }
 
 fn main() {
-    let paths = fs::read_dir("./fixtures/same_versions").unwrap();
+    let paths = fs::read_dir("./fixtures/different_versions").unwrap();
     let versions = parse_files_for_versions(paths);
     let mismatches = detect_version_mismatches(&versions);
+    print_mismatches(mismatches);
+}
+
+fn print_mismatches(mismatches: Vec<VersionMismatch>) {
+    let mut table = Table::new();
+    table.load_preset(comfy_table::presets::UTF8_FULL);
+    for mismatch in mismatches {
+        let mut versions = Vec::new();
+        let mut locations = Vec::new();
+        for version in mismatch.versions {
+            versions.push(format!("{}", version));
+            locations.push(format!("{}", version.found_in_file));
+        }
+        table
+            .add_row(vec![Cell::new(mismatch.level.to_string())
+                .add_attribute(comfy_table::Attribute::Bold)
+                .fg(comfy_table::Color::Red)])
+            .add_row(versions)
+            .add_row(locations);
+    }
+    println!("\n{}", table);
 }
 
 fn detect_version_mismatches(versions: &Vec<RubyVersion>) -> Vec<VersionMismatch> {
